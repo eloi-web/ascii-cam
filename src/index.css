@@ -1,5 +1,5 @@
 @import url('./css/array.css');
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=DM+Sans+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -15,11 +15,40 @@
 
   --font-headline: "Array-BoldWide", "Array-Bold", sans-serif;
   --font-body: "Poppins", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-mono: "DM Sans Mono", monospace;
 }
 
 @layer utilities {
   .glass-panel {
     @apply bg-moss-900/60 backdrop-blur-xl border border-moss-500/30 shadow-lg;
+  }
+}
+
+/* CRT Scanline Overlay */
+.crt-overlay {
+  background: repeating-linear-gradient(0deg,
+      rgba(0, 0, 0, 0.15) 0px,
+      rgba(0, 0, 0, 0.15) 1px,
+      transparent 1px,
+      transparent 3px);
+  mix-blend-mode: multiply;
+  animation: crt-flicker 0.1s infinite alternate;
+}
+
+.crt-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
+  pointer-events: none;
+}
+
+@keyframes crt-flicker {
+  0% {
+    opacity: 0.97;
+  }
+
+  100% {
+    opacity: 1;
   }
 }

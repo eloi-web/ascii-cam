@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Video, VideoOff, Circle, Palette, Home, Code, Square, Camera, Search } from 'lucide-react';
+import { Video, VideoOff, Circle, Palette, Home, Code, Square, Camera, Search, SlidersHorizontal, Crosshair, Monitor, Copy, Check, ArrowUpDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const ASCII_CHARS = ' .:-=+*#%@';
+const CHARSETS = [
+  { id: 'standard', name: 'Standard', chars: ' .:-=+*#%@' },
+  { id: 'binary', name: 'Binary', chars: '01' },
+  { id: 'blocks', name: 'Blocks', chars: ' ░▒▓█' },
+  { id: 'dots', name: 'Dots', chars: ' ·•●' },
+  { id: 'minimal', name: 'Minimal', chars: ' .:#' },
+  { id: 'braille', name: 'Braille', chars: ' ⠁⠃⠇⠏⠟⠿⡿⣿' },
+];
 
 const PALETTES = [
   { id: 'truecolor', hex: 'conic-gradient(from 90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)', isGradient: true },
@@ -22,7 +29,7 @@ const Tooltip = ({ children, text }: { children: React.ReactNode, text: string }
   return (
     <div className="group relative flex justify-center items-center">
       {children}
-      <div className="absolute bottom-full mb-4 glass-panel px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-widest font-bold text-mint-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none scale-95 group-hover:scale-100 origin-bottom">
+      <div className="absolute bottom-full mb-4 glass-panel px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold text-mint-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none scale-95 group-hover:scale-100 origin-bottom">
         {text}
       </div>
     </div>
@@ -39,6 +46,24 @@ export default function App() {
   const [fps, setFps] = useState(0);
   const [gridSize, setGridSize] = useState({ cols: 120, rows: 72 });
   const [zoom, setZoom] = useState(1);
+  const [fontSize, setFontSize] = useState(16);
+  const [contrast, setContrast] = useState(1.5);
+  const [gain, setGain] = useState(1.0);
+  const [charsetIndex, setCharsetIndex] = useState(0);
+  const [focusMode, setFocusMode] = useState(false);
+  const [focusIntensity, setFocusIntensity] = useState(0.7);
+  const [showSettings, setShowSettings] = useState(false);
+  const [invertMode, setInvertMode] = useState(false);
+  const [crtMode, setCrtMode] = useState(false);
+  const [matrixRain, setMatrixRain] = useState(false);
+  const [fpsCap, setFpsCap] = useState(30);
+  const [copied, setCopied] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  const asciiLinesRef = useRef<string[]>([]);
+  const matrixCanvasRef = useRef<HTMLCanvasElement>(null);
+  const matrixDropsRef = useRef<number[]>([]);
+  const matrixRafRef = useRef<number>(0);
 
   const initialPinchDistance = useRef<number | null>(null);
   const initialZoomOnPinch = useRef<number>(1);
@@ -69,7 +94,7 @@ export default function App() {
   const processFrame = useCallback((time: number) => {
     if (!isCameraActive || !videoRef.current || !pixelCanvasRef.current || !displayCanvasRef.current) return;
 
-    if (time - lastDrawTime.current < 1000 / 30) {
+    if (time - lastDrawTime.current < 1000 / fpsCap) {
       requestRef.current = requestAnimationFrame(processFrame);
       return;
     }
@@ -112,7 +137,6 @@ export default function App() {
     pCtx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, cols, rows);
     const pixels = pCtx.getImageData(0, 0, cols, rows).data;
 
-    const fontSize = 16;
     dCtx.font = `bold ${fontSize}px "JetBrains Mono", monospace`;
     const charWidth = dCtx.measureText('M').width || fontSize * charAspect;
     const charHeight = fontSize;
@@ -131,22 +155,38 @@ export default function App() {
     dCtx.textBaseline = "top";
 
     const isTrueColor = currentPalette.id === 'truecolor';
+    const activeChars = CHARSETS[charsetIndex].chars;
+    const cx = cols / 2;
+    const cy = rows / 2;
+    const maxDistSq = cx * cx + cy * cy;
     let asciiLines = [];
 
     for (let y = 0; y < rows; y++) {
       let rowStr = '';
       for (let x = 0; x < cols; x++) {
-        // mirror horizontally
         const mirrorX = cols - 1 - x;
         const i = (y * cols + mirrorX) * 4;
         const r = pixels[i];
         const g = pixels[i + 1];
         const b = pixels[i + 2];
 
-        // Boost contrast heavily to map well
-        const brightness = Math.min(255, (0.299 * r + 0.587 * g + 0.114 * b) * 1.5);
-        const mappedIndex = Math.floor((brightness / 255) * (ASCII_CHARS.length - 1));
-        rowStr += ASCII_CHARS[mappedIndex];
+        // Luminance → apply gain → apply contrast
+        const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+        let adjusted = luma * gain;
+        adjusted = ((adjusted / 255 - 0.5) * contrast + 0.5) * 255;
+
+        // Radial focus vignette
+        if (focusMode) {
+          const dx = x - cx, dy = y - cy;
+          const distSq = dx * dx + dy * dy;
+          const falloff = Math.max(0, 1 - (distSq / maxDistSq) * focusIntensity * 2.5);
+          adjusted *= falloff;
+        }
+
+        adjusted = Math.max(0, Math.min(255, adjusted));
+        let mappedIndex = Math.floor((adjusted / 255) * (activeChars.length - 1));
+        if (invertMode) mappedIndex = activeChars.length - 1 - mappedIndex;
+        rowStr += activeChars[mappedIndex];
       }
       asciiLines.push(rowStr);
     }
@@ -183,8 +223,9 @@ export default function App() {
       }
     }
 
+    asciiLinesRef.current = asciiLines;
     requestRef.current = requestAnimationFrame(processFrame);
-  }, [isCameraActive, zoom, gridSize.cols, currentPalette]);
+  }, [isCameraActive, zoom, gridSize.cols, currentPalette, fontSize, contrast, gain, charsetIndex, focusMode, focusIntensity, invertMode, fpsCap]);
 
   useEffect(() => {
     if (isCameraActive) {
@@ -302,6 +343,111 @@ export default function App() {
     document.body.removeChild(a);
   };
 
+  const copyAsciiToClipboard = async () => {
+    const lines = asciiLinesRef.current;
+    if (!lines.length) return;
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy ASCII to clipboard', err);
+    }
+  };
+
+  // Matrix rain effect
+  useEffect(() => {
+    if (!matrixRain || !isCameraActive) {
+      cancelAnimationFrame(matrixRafRef.current);
+      const mc = matrixCanvasRef.current;
+      if (mc) {
+        const ctx = mc.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, mc.width, mc.height);
+      }
+      return;
+    }
+    const mc = matrixCanvasRef.current;
+    if (!mc) return;
+    const ctx = mc.getContext('2d');
+    if (!ctx) return;
+
+    const resizeMatrix = () => {
+      mc.width = window.innerWidth;
+      mc.height = window.innerHeight;
+      const columns = Math.floor(mc.width / 14);
+      matrixDropsRef.current = Array.from({ length: columns }, () => Math.random() * -100);
+    };
+    resizeMatrix();
+    window.addEventListener('resize', resizeMatrix);
+
+    const matrixChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘ';
+    const drawMatrix = () => {
+      ctx.fillStyle = 'rgba(17, 20, 17, 0.05)';
+      ctx.fillRect(0, 0, mc.width, mc.height);
+      ctx.fillStyle = currentPalette.id === 'truecolor' ? '#00fd87' : (currentPalette.hex || '#00fd87');
+      ctx.font = '14px "JetBrains Mono", monospace';
+
+      const drops = matrixDropsRef.current;
+      for (let i = 0; i < drops.length; i++) {
+        const char = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+        ctx.globalAlpha = 0.3 + Math.random() * 0.3;
+        ctx.fillText(char, i * 14, drops[i] * 14);
+        if (drops[i] * 14 > mc.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+        drops[i]++;
+      }
+      ctx.globalAlpha = 1;
+      matrixRafRef.current = requestAnimationFrame(drawMatrix);
+    };
+    matrixRafRef.current = requestAnimationFrame(drawMatrix);
+
+    return () => {
+      cancelAnimationFrame(matrixRafRef.current);
+      window.removeEventListener('resize', resizeMatrix);
+    };
+  }, [matrixRain, isCameraActive, currentPalette]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in inputs
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      switch (e.key.toLowerCase()) {
+        case ' ':
+          e.preventDefault();
+          toggleCamera();
+          break;
+        case 'r':
+          if (isCameraActive) toggleRecord();
+          break;
+        case 'f':
+          setFocusMode(prev => !prev);
+          break;
+        case 'c':
+          if (isCameraActive) capturePhoto();
+          break;
+        case 'i':
+          setInvertMode(prev => !prev);
+          break;
+        case 'e':
+          if (isCameraActive) copyAsciiToClipboard();
+          break;
+        case 'm':
+          setMatrixRain(prev => !prev);
+          break;
+        case 't':
+          setCrtMode(prev => !prev);
+          break;
+        case '?':
+          setShowShortcuts(prev => !prev);
+          break;
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isCameraActive, isRecording]);
+
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       const dist = Math.hypot(
@@ -345,6 +491,15 @@ export default function App() {
           ref={displayCanvasRef}
           className={`w-full h-full object-contain object-center transition-opacity duration-500 ${isCameraActive ? 'opacity-100' : 'opacity-0'}`}
         />
+        {/* Matrix Rain Canvas */}
+        <canvas
+          ref={matrixCanvasRef}
+          className={`absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-300 ${matrixRain && isCameraActive ? 'opacity-100' : 'opacity-0'}`}
+        />
+        {/* CRT Scanline Overlay */}
+        {crtMode && isCameraActive && (
+          <div className="absolute inset-0 pointer-events-none z-10 crt-overlay" />
+        )}
         <AnimatePresence>
           {!isCameraActive && (
             <motion.div
@@ -378,7 +533,7 @@ export default function App() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  className="glass-panel px-3 py-1.5 rounded-lg font-mono text-[10px] text-sun-500 font-bold uppercase tracking-wider flex items-center gap-2 w-fit border border-sun-500/20 shadow-[0_0_15px_rgba(255,219,121,0.2)]"
+                  className="glass-panel px-3 py-1.5 rounded-full font-mono text-[10px] text-sun-500 font-bold uppercase tracking-wider flex items-center gap-2 w-fit border border-sun-500/20 shadow-[0_0_15px_rgba(255,219,121,0.2)]"
                 >
                   <motion.span
                     animate={{ opacity: [1, 0.3, 1] }}
@@ -393,33 +548,56 @@ export default function App() {
 
           {/* Top Right: Nav & Settings Check */}
           <div className="flex flex-col items-end gap-3 sm:gap-4">
-            <nav className="flex gap-1 sm:gap-2 items-center font-headline tracking-tighter uppercase font-medium glass-panel px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl border border-moss-500/20">
-              <a href="#" className="text-moss-400 hover:text-mint-500 transition-colors flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-white/5 disabled">
+            <nav className="flex gap-1 sm:gap-2 items-center font-headline tracking-tighter uppercase font-medium glass-panel px-2 sm:px-4 py-1.5 sm:py-2 rounded-full border border-moss-500/20">
+              <a href="#" className="text-moss-400 hover:text-mint-500 transition-colors flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-full hover:bg-white/5 disabled">
                 <Home className="w-4 h-4" />
                 <span className="hidden md:block text-sm">Home</span>
               </a>
               <div className="w-px h-4 bg-moss-500/30 mx-1"></div>
-              <a href="#" className="text-moss-400 hover:text-mint-500 transition-colors flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-white/5 disabled">
+              <a href="#" className="text-moss-400 hover:text-mint-500 transition-colors flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-full hover:bg-white/5 disabled">
                 <Code className="w-4 h-4" />
                 <span className="hidden md:block text-sm">GitHub</span>
               </a>
             </nav>
 
             <div className="flex flex-col items-end gap-2 text-moss-400">
-              <div className="glass-panel px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-wider w-fit border border-moss-500/20">
+              <div className="glass-panel px-3 py-1.5 rounded-full font-mono text-[10px] uppercase tracking-wider w-fit border border-moss-500/20">
                 ISO Auto
               </div>
               {isCameraActive && (
                 <>
-                  <div className="glass-panel px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-wider w-fit border border-moss-500/20">
+                  <div className="glass-panel px-3 py-1.5 rounded-full font-mono text-[10px] uppercase tracking-wider w-fit border border-moss-500/20">
                     GRID {gridSize.cols} COLS
                   </div>
-                  <div className="glass-panel px-3 py-1.5 rounded-lg font-mono text-[10px] uppercase tracking-wider w-fit border border-moss-500/20">
+                  <div className="glass-panel px-3 py-1.5 rounded-full font-mono text-[10px] uppercase tracking-wider w-fit border border-moss-500/20">
                     FPS {fps}
                   </div>
-                  <div className="glass-panel px-3 py-1.5 rounded-lg font-mono text-[10px] text-mint-500 font-bold uppercase tracking-wider w-fit border border-moss-500/20">
+                  <div className="glass-panel px-3 py-1.5 rounded-full font-mono text-[10px] text-mint-500 font-bold uppercase tracking-wider w-fit border border-moss-500/20">
                     Zoom {zoom.toFixed(1)}X
                   </div>
+                  <div className="glass-panel px-3 py-1.5 rounded-full font-mono text-[10px] uppercase tracking-wider w-fit border border-moss-500/20">
+                    {CHARSETS[charsetIndex].name} {fontSize}px
+                  </div>
+                  {focusMode && (
+                    <div className="glass-panel px-3 py-1.5 rounded-full font-mono text-[10px] text-mint-500 font-bold uppercase tracking-wider w-fit border border-mint-500/20 shadow-[0_0_10px_rgba(142,232,23,0.15)]">
+                      <Crosshair className="w-3 h-3 inline mr-1" /> Focus {(focusIntensity * 100).toFixed(0)}%
+                    </div>
+                  )}
+                  {invertMode && (
+                    <div className="glass-panel px-3 py-1.5 rounded-full font-mono text-[10px] text-sun-500 font-bold uppercase tracking-wider w-fit border border-sun-500/20">
+                      <ArrowUpDown className="w-3 h-3 inline mr-1" /> Inverted
+                    </div>
+                  )}
+                  {crtMode && (
+                    <div className="glass-panel px-3 py-1.5 rounded-full font-mono text-[10px] text-mint-500 font-bold uppercase tracking-wider w-fit border border-mint-500/20">
+                      <Monitor className="w-3 h-3 inline mr-1" /> CRT
+                    </div>
+                  )}
+                  {matrixRain && (
+                    <div className="glass-panel px-3 py-1.5 rounded-full font-mono text-[10px] text-mint-500 font-bold uppercase tracking-wider w-fit border border-mint-500/20 shadow-[0_0_10px_rgba(142,232,23,0.15)]">
+                      Matrix
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -428,11 +606,11 @@ export default function App() {
       </header>
 
       {/* Bottom Control Bar */}
-      <nav className="fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-1 sm:gap-2 p-1.5 sm:p-2 z-50 glass-panel rounded-xl border border-moss-500/20">
+      <nav className="fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-1 sm:gap-2 p-1.5 sm:p-2 z-50 glass-panel rounded-full border border-moss-500/20">
         <Tooltip text={isCameraActive ? "Stop Camera" : "Start Camera"}>
           <button
             onClick={toggleCamera}
-            className={`p-2.5 sm:p-3 rounded-lg transition-all active:scale-95 ${isCameraActive
+            className={`p-2.5 sm:p-3 rounded-full transition-all active:scale-95 ${isCameraActive
               ? 'bg-mint-500 text-surface shadow-[0_0_20px_rgba(0,253,135,0.3)]'
               : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'
               }`}
@@ -447,7 +625,7 @@ export default function App() {
           <button
             onClick={toggleRecord}
             disabled={!isCameraActive}
-            className={`p-2.5 sm:p-3 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${isRecording
+            className={`p-2.5 sm:p-3 rounded-full transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${isRecording
               ? 'text-surface bg-sun-500 shadow-[0_0_20px_rgba(255,219,121,0.3)]'
               : 'text-moss-400 hover:text-sun-500 hover:bg-white/5'
               }`}
@@ -459,7 +637,7 @@ export default function App() {
         <Tooltip text="Toggle Zoom Slider">
           <button
             onClick={() => setShowZoom(!showZoom)}
-            className={`p-2.5 sm:p-3 transition-all active:scale-95 rounded-lg flex items-center justify-center ${showZoom ? 'bg-white/10 text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
+            className={`p-2.5 sm:p-3 transition-all active:scale-95 rounded-full flex items-center justify-center ${showZoom ? 'bg-white/10 text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
           >
             <Search className="w-5 h-5" />
           </button>
@@ -469,7 +647,7 @@ export default function App() {
           <Tooltip text="Select Color">
             <button
               onClick={() => setShowPalette(!showPalette)}
-              className={`p-2.5 sm:p-3 transition-all active:scale-95 rounded-lg flex items-center justify-center relative ${showPalette ? 'bg-white/10 text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
+              className={`p-2.5 sm:p-3 transition-all active:scale-95 rounded-full flex items-center justify-center relative ${showPalette ? 'bg-white/10 text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
             >
               <Palette className="w-5 h-5" />
               <div
@@ -500,16 +678,228 @@ export default function App() {
           </AnimatePresence>
         </div>
 
+        <div className="relative flex justify-center">
+          <Tooltip text="Settings">
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className={`p-2.5 sm:p-3 transition-all active:scale-95 rounded-full flex items-center justify-center ${showSettings ? 'bg-white/10 text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
+            >
+              <SlidersHorizontal className="w-5 h-5" />
+            </button>
+          </Tooltip>
+
+          <AnimatePresence>
+            {showSettings && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="absolute bottom-[calc(100%+1rem)] right-0 glass-panel p-4 rounded-2xl border border-moss-500/30 shadow-2xl origin-bottom-right w-72"
+              >
+                <div className="space-y-4">
+                  {/* Font Size */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-[10px] font-mono text-moss-400 uppercase tracking-wider">Font Size</label>
+                      <span className="text-[10px] font-mono text-mint-500 font-bold">{fontSize}px</span>
+                    </div>
+                    <input type="range" min="8" max="28" step="1" value={fontSize}
+                      onChange={(e) => setFontSize(parseInt(e.target.value))}
+                      className="w-full h-1 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Contrast */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-[10px] font-mono text-moss-400 uppercase tracking-wider">Contrast</label>
+                      <span className="text-[10px] font-mono text-mint-500 font-bold">{contrast.toFixed(1)}</span>
+                    </div>
+                    <input type="range" min="0.5" max="3.0" step="0.1" value={contrast}
+                      onChange={(e) => setContrast(parseFloat(e.target.value))}
+                      className="w-full h-1 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Gain */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-[10px] font-mono text-moss-400 uppercase tracking-wider">Gain</label>
+                      <span className="text-[10px] font-mono text-mint-500 font-bold">{gain.toFixed(1)}x</span>
+                    </div>
+                    <input type="range" min="0.5" max="3.0" step="0.1" value={gain}
+                      onChange={(e) => setGain(parseFloat(e.target.value))}
+                      className="w-full h-1 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Focus */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-[10px] font-mono text-moss-400 uppercase tracking-wider">Focus</label>
+                      <button
+                        onClick={() => setFocusMode(!focusMode)}
+                        className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded transition-colors ${focusMode ? 'bg-mint-500/20 text-mint-500' : 'text-moss-500 hover:text-moss-400'}`}
+                      >
+                        {focusMode ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+                    {focusMode && (
+                      <input type="range" min="0.1" max="1.0" step="0.05" value={focusIntensity}
+                        onChange={(e) => setFocusIntensity(parseFloat(e.target.value))}
+                        className="w-full h-1 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
+                      />
+                    )}
+                  </div>
+
+                  {/* Invert */}
+                  <div>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-mono text-moss-400 uppercase tracking-wider">Invert</label>
+                      <button
+                        onClick={() => setInvertMode(!invertMode)}
+                        className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded transition-colors ${invertMode ? 'bg-sun-500/20 text-sun-500' : 'text-moss-500 hover:text-moss-400'}`}
+                      >
+                        {invertMode ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* CRT */}
+                  <div>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-mono text-moss-400 uppercase tracking-wider">CRT Effect</label>
+                      <button
+                        onClick={() => setCrtMode(!crtMode)}
+                        className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded transition-colors ${crtMode ? 'bg-mint-500/20 text-mint-500' : 'text-moss-500 hover:text-moss-400'}`}
+                      >
+                        {crtMode ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Matrix Rain */}
+                  <div>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-mono text-moss-400 uppercase tracking-wider">Matrix Rain</label>
+                      <button
+                        onClick={() => setMatrixRain(!matrixRain)}
+                        className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded transition-colors ${matrixRain ? 'bg-mint-500/20 text-mint-500' : 'text-moss-500 hover:text-moss-400'}`}
+                      >
+                        {matrixRain ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* FPS Cap */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-[10px] font-mono text-moss-400 uppercase tracking-wider">FPS Cap</label>
+                      <span className="text-[10px] font-mono text-mint-500 font-bold">{fpsCap}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[15, 30, 60].map((v) => (
+                        <button
+                          key={v}
+                          onClick={() => setFpsCap(v)}
+                          className={`text-[10px] font-mono py-1.5 px-2 rounded-full transition-all ${fpsCap === v
+                              ? 'bg-mint-500/20 text-mint-500 border border-mint-500/30'
+                              : 'text-moss-400 hover:text-mint-500 border border-moss-500/20 hover:border-mint-500/20'
+                            }`}
+                        >
+                          {v} FPS
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Charset */}
+                  <div>
+                    <label className="text-[10px] font-mono text-moss-400 uppercase tracking-wider block mb-1.5">Charset</label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {CHARSETS.map((cs, idx) => (
+                        <button
+                          key={cs.id}
+                          onClick={() => setCharsetIndex(idx)}
+                          className={`text-[10px] font-mono py-1.5 px-2 rounded-full transition-all ${idx === charsetIndex
+                            ? 'bg-mint-500/20 text-mint-500 border border-mint-500/30'
+                            : 'text-moss-400 hover:text-mint-500 border border-moss-500/20 hover:border-mint-500/20'
+                            }`}
+                        >
+                          {cs.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="w-px h-6 bg-moss-500/30 mx-0.5 sm:mx-1"></div>
+
         <Tooltip text="Capture Image">
           <button
             disabled={!isCameraActive}
             onClick={capturePhoto}
-            className="text-moss-400 p-2.5 sm:p-3 hover:text-mint-500 hover:bg-white/5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
+            className="text-moss-400 p-2.5 sm:p-3 hover:text-mint-500 hover:bg-white/5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed rounded-full"
           >
             <Camera className="w-5 h-5" />
           </button>
         </Tooltip>
+
+        <Tooltip text={copied ? "Copied!" : "Copy ASCII to Clipboard"}>
+          <button
+            disabled={!isCameraActive}
+            onClick={copyAsciiToClipboard}
+            className={`p-2.5 sm:p-3 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed rounded-full ${copied ? 'text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
+          >
+            {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+          </button>
+        </Tooltip>
       </nav>
+
+      {/* Keyboard Shortcuts Help */}
+      <AnimatePresence>
+        {showShortcuts && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowShortcuts(false)}
+          >
+            <div className="glass-panel p-6 rounded-2xl border border-moss-500/30 shadow-2xl max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-headline text-mint-500 uppercase tracking-tight mb-4">Keyboard Shortcuts</h3>
+              <div className="space-y-2">
+                {[
+                  ['Space', 'Toggle Camera'],
+                  ['R', 'Record / Stop'],
+                  ['C', 'Capture Photo'],
+                  ['E', 'Export ASCII Text'],
+                  ['F', 'Toggle Focus'],
+                  ['I', 'Toggle Invert'],
+                  ['T', 'Toggle CRT'],
+                  ['M', 'Toggle Matrix Rain'],
+                  ['?', 'Show / Hide Shortcuts'],
+                ].map(([key, desc]) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <span className="text-xs text-moss-400 font-body">{desc}</span>
+                    <kbd className="text-[10px] font-mono text-mint-500 bg-moss-900/80 border border-moss-500/30 px-2 py-0.5 rounded">{key}</kbd>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowShortcuts(false)}
+                className="mt-4 w-full text-[10px] font-mono uppercase tracking-wider text-moss-400 hover:text-mint-500 transition-colors py-2 border border-moss-500/20 rounded-full hover:border-mint-500/20"
+              >
+                Close (or press ?)
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Floating Vertical Slider */}
       <AnimatePresence>

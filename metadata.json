@@ -1,0 +1,8 @@
+{
+  "name": "ASCII Cam",
+  "description": "Mint Tech Dark styled ASCII live camera feed app.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}

@@ -55,15 +55,11 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [invertMode, setInvertMode] = useState(false);
   const [crtMode, setCrtMode] = useState(false);
-  const [matrixRain, setMatrixRain] = useState(false);
   const [fpsCap, setFpsCap] = useState(30);
   const [copied, setCopied] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
 
   const asciiLinesRef = useRef<string[]>([]);
-  const matrixCanvasRef = useRef<HTMLCanvasElement>(null);
-  const matrixDropsRef = useRef<number[]>([]);
-  const matrixRafRef = useRef<number>(0);
 
   const initialPinchDistance = useRef<number | null>(null);
   const initialZoomOnPinch = useRef<number>(1);
@@ -137,7 +133,7 @@ export default function App() {
     pCtx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, cols, rows);
     const pixels = pCtx.getImageData(0, 0, cols, rows).data;
 
-    dCtx.font = `bold ${fontSize}px "JetBrains Mono", monospace`;
+    dCtx.font = `bold ${fontSize}px "DM Sans Mono", monospace`;
     const charWidth = dCtx.measureText('M').width || fontSize * charAspect;
     const charHeight = fontSize;
 
@@ -151,7 +147,7 @@ export default function App() {
       dCanvas.height = dHeight;
     }
 
-    dCtx.font = `bold ${fontSize}px "JetBrains Mono", monospace`;
+    dCtx.font = `bold ${fontSize}px "DM Sans Mono", monospace`;
     dCtx.textBaseline = "top";
 
     const isTrueColor = currentPalette.id === 'truecolor';
@@ -355,59 +351,6 @@ export default function App() {
     }
   };
 
-  // Matrix rain effect
-  useEffect(() => {
-    if (!matrixRain || !isCameraActive) {
-      cancelAnimationFrame(matrixRafRef.current);
-      const mc = matrixCanvasRef.current;
-      if (mc) {
-        const ctx = mc.getContext('2d');
-        if (ctx) ctx.clearRect(0, 0, mc.width, mc.height);
-      }
-      return;
-    }
-    const mc = matrixCanvasRef.current;
-    if (!mc) return;
-    const ctx = mc.getContext('2d');
-    if (!ctx) return;
-
-    const resizeMatrix = () => {
-      mc.width = window.innerWidth;
-      mc.height = window.innerHeight;
-      const columns = Math.floor(mc.width / 14);
-      matrixDropsRef.current = Array.from({ length: columns }, () => Math.random() * -100);
-    };
-    resizeMatrix();
-    window.addEventListener('resize', resizeMatrix);
-
-    const matrixChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘ';
-    const drawMatrix = () => {
-      ctx.fillStyle = 'rgba(17, 20, 17, 0.05)';
-      ctx.fillRect(0, 0, mc.width, mc.height);
-      ctx.fillStyle = currentPalette.id === 'truecolor' ? '#00fd87' : (currentPalette.hex || '#00fd87');
-      ctx.font = '14px "JetBrains Mono", monospace';
-
-      const drops = matrixDropsRef.current;
-      for (let i = 0; i < drops.length; i++) {
-        const char = matrixChars[Math.floor(Math.random() * matrixChars.length)];
-        ctx.globalAlpha = 0.3 + Math.random() * 0.3;
-        ctx.fillText(char, i * 14, drops[i] * 14);
-        if (drops[i] * 14 > mc.height && Math.random() > 0.975) {
-          drops[i] = 0;
-        }
-        drops[i]++;
-      }
-      ctx.globalAlpha = 1;
-      matrixRafRef.current = requestAnimationFrame(drawMatrix);
-    };
-    matrixRafRef.current = requestAnimationFrame(drawMatrix);
-
-    return () => {
-      cancelAnimationFrame(matrixRafRef.current);
-      window.removeEventListener('resize', resizeMatrix);
-    };
-  }, [matrixRain, isCameraActive, currentPalette]);
-
   // Keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -432,9 +375,6 @@ export default function App() {
           break;
         case 'e':
           if (isCameraActive) copyAsciiToClipboard();
-          break;
-        case 'm':
-          setMatrixRain(prev => !prev);
           break;
         case 't':
           setCrtMode(prev => !prev);
@@ -490,11 +430,6 @@ export default function App() {
         <canvas
           ref={displayCanvasRef}
           className={`w-full h-full object-contain object-center transition-opacity duration-500 ${isCameraActive ? 'opacity-100' : 'opacity-0'}`}
-        />
-        {/* Matrix Rain Canvas */}
-        <canvas
-          ref={matrixCanvasRef}
-          className={`absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-300 ${matrixRain && isCameraActive ? 'opacity-100' : 'opacity-0'}`}
         />
         {/* CRT Scanline Overlay */}
         {crtMode && isCameraActive && (
@@ -591,11 +526,6 @@ export default function App() {
                   {crtMode && (
                     <div className="glass-panel px-3 py-1.5 rounded-full font-mono text-[10px] text-mint-500 font-bold uppercase tracking-wider w-fit border border-mint-500/20">
                       <Monitor className="w-3 h-3 inline mr-1" /> CRT
-                    </div>
-                  )}
-                  {matrixRain && (
-                    <div className="glass-panel px-3 py-1.5 rounded-full font-mono text-[10px] text-mint-500 font-bold uppercase tracking-wider w-fit border border-mint-500/20 shadow-[0_0_10px_rgba(142,232,23,0.15)]">
-                      Matrix
                     </div>
                   )}
                 </>
@@ -778,19 +708,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Matrix Rain */}
-                  <div>
-                    <div className="flex justify-between items-center">
-                      <label className="text-[10px] font-mono text-moss-400 uppercase tracking-wider">Matrix Rain</label>
-                      <button
-                        onClick={() => setMatrixRain(!matrixRain)}
-                        className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded transition-colors ${matrixRain ? 'bg-mint-500/20 text-mint-500' : 'text-moss-500 hover:text-moss-400'}`}
-                      >
-                        {matrixRain ? 'ON' : 'OFF'}
-                      </button>
-                    </div>
-                  </div>
-
                   {/* FPS Cap */}
                   <div>
                     <div className="flex justify-between items-center mb-1.5">
@@ -803,8 +720,8 @@ export default function App() {
                           key={v}
                           onClick={() => setFpsCap(v)}
                           className={`text-[10px] font-mono py-1.5 px-2 rounded-full transition-all ${fpsCap === v
-                              ? 'bg-mint-500/20 text-mint-500 border border-mint-500/30'
-                              : 'text-moss-400 hover:text-mint-500 border border-moss-500/20 hover:border-mint-500/20'
+                            ? 'bg-mint-500/20 text-mint-500 border border-mint-500/30'
+                            : 'text-moss-400 hover:text-mint-500 border border-moss-500/20 hover:border-mint-500/20'
                             }`}
                         >
                           {v} FPS
@@ -881,7 +798,6 @@ export default function App() {
                   ['F', 'Toggle Focus'],
                   ['I', 'Toggle Invert'],
                   ['T', 'Toggle CRT'],
-                  ['M', 'Toggle Matrix Rain'],
                   ['?', 'Show / Hide Shortcuts'],
                 ].map(([key, desc]) => (
                   <div key={key} className="flex items-center justify-between">

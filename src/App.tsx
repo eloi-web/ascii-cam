@@ -6,7 +6,7 @@ const ASCII_CHARS = ' .:-=+*#%@';
 
 const PALETTES = [
   { id: 'truecolor', hex: 'conic-gradient(from 90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)', isGradient: true },
-  { id: 'mint', hex: '#a1eb34' },
+  { id: 'mint', hex: '#8ee817' },
   { id: 'forest', hex: '#2a874d' },
   { id: 'sun', hex: '#ffdb79' },
   { id: 'white', hex: '#ffffff' },

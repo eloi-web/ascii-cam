@@ -75,11 +75,7 @@ cd ascii-cam
 # 2. Install dependencies
 npm install
 
-# 3. (Optional) Set Gemini API key if needed
-#    Create a .env.local file and add:
-#    GEMINI_API_KEY=your_key_here
-
-# 4. Start the dev server (port 3000)
+# 3. Start the dev server (port 3000)
 npm run dev
 ```
 

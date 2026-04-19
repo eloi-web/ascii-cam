@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Video, VideoOff, Circle, Palette, Home, Square, Camera, Search, SlidersHorizontal, Crosshair, Monitor, Copy, Check, ArrowUpDown } from 'lucide-react';
+import { Video, VideoOff, Circle, Palette, Square, Camera, Search, SlidersHorizontal, Crosshair, Monitor, Copy, Check, ArrowUpDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const CHARSETS = [

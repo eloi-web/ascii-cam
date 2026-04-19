@@ -51,7 +51,7 @@ export default function App() {
   const [gain, setGain] = useState(1.0);
   const [charsetIndex, setCharsetIndex] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
-  const [focusIntensity, setFocusIntensity] = useState(0.7);
+  const [focusIntensity, setFocusIntensity] = useState(0.85);
   const [showSettings, setShowSettings] = useState(false);
   const [invertMode, setInvertMode] = useState(false);
   const [crtMode, setCrtMode] = useState(false);
@@ -79,13 +79,15 @@ export default function App() {
 
   useEffect(() => {
     const handleResize = () => {
-      const cols = window.innerWidth < 640 ? 80 : (window.innerWidth < 1024 ? 120 : 160);
-      setGridSize({ cols, rows: 0 }); // rows dynamically calculated from video aspect
+      const charW = fontSize * 0.6;
+      const cols = Math.max(40, Math.floor(window.innerWidth / charW));
+      const rows = Math.max(20, Math.floor(window.innerHeight / fontSize));
+      setGridSize({ cols, rows });
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [fontSize]);
 
   const processFrame = useCallback((time: number) => {
     if (!isCameraActive || !videoRef.current || !pixelCanvasRef.current || !displayCanvasRef.current) return;
@@ -118,15 +120,24 @@ export default function App() {
     if (!pCtx || !dCtx) return;
 
     const cols = gridSize.cols;
-    const videoAspect = video.videoWidth / video.videoHeight;
-    const charAspect = 0.6; // Common monospace aspect ratio
-    const rows = Math.max(1, Math.floor((cols / videoAspect) * charAspect));
+    const rows = gridSize.rows > 0 ? gridSize.rows : Math.max(1, Math.floor((cols / (video.videoWidth / video.videoHeight)) * 0.6));
 
     if (pCanvas.width !== cols) pCanvas.width = cols;
     if (pCanvas.height !== rows) pCanvas.height = rows;
 
-    const sWidth = video.videoWidth / zoom;
-    const sHeight = video.videoHeight / zoom;
+    // Cover crop: fill the grid, cropping the video as needed
+    const displayAspect = (cols * 0.6) / rows;
+    const baseW = video.videoWidth / zoom;
+    const baseH = video.videoHeight / zoom;
+    const videoAspect = baseW / baseH;
+    let sWidth, sHeight;
+    if (videoAspect > displayAspect) {
+      sHeight = baseH;
+      sWidth = baseH * displayAspect;
+    } else {
+      sWidth = baseW;
+      sHeight = baseW / displayAspect;
+    }
     const sx = (video.videoWidth - sWidth) / 2;
     const sy = (video.videoHeight - sHeight) / 2;
 
@@ -134,7 +145,7 @@ export default function App() {
     const pixels = pCtx.getImageData(0, 0, cols, rows).data;
 
     dCtx.font = `bold ${fontSize}px "DM Sans Mono", monospace`;
-    const charWidth = dCtx.measureText('M').width || fontSize * charAspect;
+    const charWidth = dCtx.measureText('M').width || fontSize * 0.6;
     const charHeight = fontSize;
 
     const dWidth = Math.ceil(cols * charWidth);
@@ -154,7 +165,6 @@ export default function App() {
     const activeChars = CHARSETS[charsetIndex].chars;
     const cx = cols / 2;
     const cy = rows / 2;
-    const maxDistSq = cx * cx + cy * cy;
     let asciiLines = [];
 
     for (let y = 0; y < rows; y++) {
@@ -171,12 +181,12 @@ export default function App() {
         let adjusted = luma * gain;
         adjusted = ((adjusted / 255 - 0.5) * contrast + 0.5) * 255;
 
-        // Radial focus vignette
+        // Elliptical focus vignette (portrait-weighted for human subjects)
         if (focusMode) {
-          const dx = x - cx, dy = y - cy;
-          const distSq = dx * dx + dy * dy;
-          const falloff = Math.max(0, 1 - (distSq / maxDistSq) * focusIntensity * 2.5);
-          adjusted *= falloff;
+          const nx = (x - cx) / cx, ny = (y - cy) / cy;
+          const normDist = nx * nx * 1.3 + ny * ny * 0.7;
+          const falloff = Math.max(0, 1 - normDist * focusIntensity * 1.8);
+          adjusted *= falloff * falloff;
         }
 
         adjusted = Math.max(0, Math.min(255, adjusted));
@@ -221,7 +231,7 @@ export default function App() {
 
     asciiLinesRef.current = asciiLines;
     requestRef.current = requestAnimationFrame(processFrame);
-  }, [isCameraActive, zoom, gridSize.cols, currentPalette, fontSize, contrast, gain, charsetIndex, focusMode, focusIntensity, invertMode, fpsCap]);
+  }, [isCameraActive, zoom, gridSize.cols, gridSize.rows, currentPalette, fontSize, contrast, gain, charsetIndex, focusMode, focusIntensity, invertMode, fpsCap]);
 
   useEffect(() => {
     if (isCameraActive) {
@@ -429,7 +439,7 @@ export default function App() {
       <div className="fixed inset-0 w-full h-full z-0 bg-surface">
         <canvas
           ref={displayCanvasRef}
-          className={`w-full h-full object-contain object-center transition-opacity duration-500 ${isCameraActive ? 'opacity-100' : 'opacity-0'}`}
+          className={`w-full h-full transition-opacity duration-500 ${isCameraActive ? 'opacity-100' : 'opacity-0'}`}
         />
         {/* CRT Scanline Overlay */}
         {crtMode && isCameraActive && (

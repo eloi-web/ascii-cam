@@ -46,7 +46,7 @@ export default function App() {
   const [fps, setFps] = useState(0);
   const [gridSize, setGridSize] = useState({ cols: 120, rows: 72 });
   const [zoom, setZoom] = useState(1);
-  const [fontSize, setFontSize] = useState(16);
+  const [fontSize, setFontSize] = useState(14);
   const [contrast, setContrast] = useState(1.5);
   const [gain, setGain] = useState(1.0);
   const [charsetIndex, setCharsetIndex] = useState(0);
@@ -466,7 +466,7 @@ export default function App() {
         <div className="flex justify-between items-start w-full max-w-7xl mx-auto pointer-events-auto">
           {/* Top Left: Logo & Rec */}
           <div className="flex flex-col gap-4">
-            <div className="glass-panel px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center border border-mint-500/20">
+            <div className="glass-panel px-4 sm:px-6 py-2 sm:py-3 rounded-full flex items-center border border-mint-500/20">
               <div className="text-xl sm:text-2xl font-black tracking-[-0.05em] text-mint-500 font-headline uppercase leading-none">
                 ASCII CAM
               </div>

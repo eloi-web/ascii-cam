@@ -547,7 +547,7 @@ export default function App() {
         <Tooltip text={isCameraActive ? "Stop Camera" : "Start Camera"}>
           <button
             onClick={toggleCamera}
-            className={`p-2.5 sm:p-3 rounded-full transition-all active:scale-95 ${isCameraActive
+            className={`p-3.5 sm:p-3 rounded-full transition-all active:scale-95 ${isCameraActive
               ? 'bg-mint-500 text-surface shadow-[0_0_20px_rgba(0,253,135,0.3)]'
               : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'
               }`}
@@ -562,7 +562,7 @@ export default function App() {
           <button
             onClick={toggleRecord}
             disabled={!isCameraActive}
-            className={`p-2.5 sm:p-3 rounded-full transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${isRecording
+            className={`p-3.5 sm:p-3 rounded-full transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${isRecording
               ? 'text-surface bg-sun-500 shadow-[0_0_20px_rgba(255,219,121,0.3)]'
               : 'text-moss-400 hover:text-sun-500 hover:bg-white/5'
               }`}
@@ -574,7 +574,7 @@ export default function App() {
         <Tooltip text="Toggle Zoom Slider">
           <button
             onClick={() => setShowZoom(!showZoom)}
-            className={`p-2.5 sm:p-3 transition-all active:scale-95 rounded-full flex items-center justify-center ${showZoom ? 'bg-white/10 text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
+            className={`p-3.5 sm:p-3 transition-all active:scale-95 rounded-full flex items-center justify-center ${showZoom ? 'bg-white/10 text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
           >
             <Search className="w-5 h-5" />
           </button>
@@ -584,7 +584,7 @@ export default function App() {
           <Tooltip text="Select Color">
             <button
               onClick={() => setShowPalette(!showPalette)}
-              className={`p-2.5 sm:p-3 transition-all active:scale-95 rounded-full flex items-center justify-center relative ${showPalette ? 'bg-white/10 text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
+              className={`p-3.5 sm:p-3 transition-all active:scale-95 rounded-full flex items-center justify-center relative ${showPalette ? 'bg-white/10 text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
             >
               <Palette className="w-5 h-5" />
               <div
@@ -600,7 +600,7 @@ export default function App() {
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="absolute bottom-[calc(100%+1rem)] glass-panel p-3 rounded-2xl grid grid-cols-5 md:grid-cols-6 gap-3 border border-moss-500/30 shadow-2xl origin-bottom w-max"
+                className="fixed bottom-22 left-1/2 -translate-x-1/2 sm:absolute sm:bottom-[calc(100%+1rem)] sm:left-auto sm:translate-x-0 glass-panel p-3 rounded-2xl grid grid-cols-6 gap-3 border border-moss-500/30 shadow-2xl origin-bottom w-max"
               >
                 {PALETTES.map((p, idx) => (
                   <button
@@ -619,7 +619,7 @@ export default function App() {
           <Tooltip text="Settings">
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className={`p-2.5 sm:p-3 transition-all active:scale-95 rounded-full flex items-center justify-center ${showSettings ? 'bg-white/10 text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
+              className={`p-3.5 sm:p-3 transition-all active:scale-95 rounded-full flex items-center justify-center ${showSettings ? 'bg-white/10 text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
             >
               <SlidersHorizontal className="w-5 h-5" />
             </button>
@@ -631,7 +631,7 @@ export default function App() {
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="absolute bottom-[calc(100%+1rem)] right-0 glass-panel p-4 rounded-2xl border border-moss-500/30 shadow-2xl origin-bottom-right w-72"
+                className="fixed bottom-22 inset-x-3 sm:absolute sm:bottom-[calc(100%+1rem)] sm:inset-x-auto sm:right-0 sm:w-72 glass-panel p-4 rounded-2xl border border-moss-500/30 shadow-2xl origin-bottom sm:origin-bottom-right overflow-y-auto max-h-[75vh] sm:max-h-none sm:overflow-visible"
               >
                 <div className="space-y-4">
                   {/* Font Size */}
@@ -642,7 +642,7 @@ export default function App() {
                     </div>
                     <input type="range" min="8" max="28" step="1" value={fontSize}
                       onChange={(e) => setFontSize(parseInt(e.target.value))}
-                      className="w-full h-1 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
+                      className="w-full h-1.5 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
                     />
                   </div>
 
@@ -654,7 +654,7 @@ export default function App() {
                     </div>
                     <input type="range" min="0.5" max="3.0" step="0.1" value={contrast}
                       onChange={(e) => setContrast(parseFloat(e.target.value))}
-                      className="w-full h-1 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
+                      className="w-full h-1.5 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
                     />
                   </div>
 
@@ -666,7 +666,7 @@ export default function App() {
                     </div>
                     <input type="range" min="0.5" max="3.0" step="0.1" value={gain}
                       onChange={(e) => setGain(parseFloat(e.target.value))}
-                      className="w-full h-1 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
+                      className="w-full h-1.5 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
                     />
                   </div>
 
@@ -684,7 +684,7 @@ export default function App() {
                     {focusMode && (
                       <input type="range" min="0.1" max="1.0" step="0.05" value={focusIntensity}
                         onChange={(e) => setFocusIntensity(parseFloat(e.target.value))}
-                        className="w-full h-1 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
+                        className="w-full h-1.5 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
                       />
                     )}
                   </div>
@@ -767,7 +767,7 @@ export default function App() {
           <button
             disabled={!isCameraActive}
             onClick={capturePhoto}
-            className="text-moss-400 p-2.5 sm:p-3 hover:text-mint-500 hover:bg-white/5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed rounded-full"
+            className="text-moss-400 p-3.5 sm:p-3 hover:text-mint-500 hover:bg-white/5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed rounded-full"
           >
             <Camera className="w-5 h-5" />
           </button>
@@ -777,7 +777,7 @@ export default function App() {
           <button
             disabled={!isCameraActive}
             onClick={copyAsciiToClipboard}
-            className={`p-2.5 sm:p-3 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed rounded-full ${copied ? 'text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
+            className={`p-3.5 sm:p-3 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed rounded-full ${copied ? 'text-mint-500' : 'text-moss-400 hover:text-mint-500 hover:bg-white/5'}`}
           >
             {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
           </button>
@@ -842,7 +842,7 @@ export default function App() {
                 step="0.1"
                 value={zoom}
                 onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="absolute w-32 sm:w-48 h-1 -rotate-90 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
+                className="absolute w-32 sm:w-48 h-1.5 -rotate-90 appearance-none bg-transparent [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-moss-500/30 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-mint-500 cursor-pointer"
               />
             </div>
             <span className="text-[10px] font-mono text-moss-400 font-bold tracking-wider">1.0</span>
